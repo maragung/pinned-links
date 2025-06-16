@@ -1,6 +1,15 @@
-export default async function handler(req, res) {
+import { NextResponse } from "next/server";
+
+export async function GET() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_GROUP_ID;
+
+  if (!token || !chatId) {
+    return NextResponse.json(
+      { error: "Missing TELEGRAM_BOT_TOKEN or TELEGRAM_GROUP_ID env variables" },
+      { status: 400 }
+    );
+  }
 
   try {
     const resp = await fetch(`https://api.telegram.org/bot${token}/getChat`, {
@@ -10,24 +19,35 @@ export default async function handler(req, res) {
     });
 
     const data = await resp.json();
+
+    if (!data.ok) {
+      return NextResponse.json(
+        { error: "Telegram API error", details: data },
+        { status: 500 }
+      );
+    }
+
     const pinned = data.result?.pinned_message?.text || "";
 
-    // Split pinned message into lines
-    const lines = pinned.split('\n').filter(line => line.trim() !== '');
+    if (!pinned) {
+      return NextResponse.json(
+        { error: "No pinned message found" },
+        { status: 404 }
+      );
+    }
 
-    // Regex to find all links with optional label before it
+    const lines = pinned.split("\n").filter((line) => line.trim() !== "");
+
     const links = [];
 
-    lines.forEach(line => {
-      // Try to match label + url, label is any text before url
+    lines.forEach((line) => {
       const match = line.match(/^(.*?)(https?:\/\/\S+)/);
       if (match) {
         links.push({
-          label: match[1].trim() || match[2].trim(), // if no label, use url as label
+          label: match[1].trim() || match[2].trim(),
           url: match[2].trim(),
         });
       } else {
-        // If line has url only (no label), try to extract urls
         const urlMatch = line.match(/(https?:\/\/\S+)/);
         if (urlMatch) {
           links.push({
@@ -38,9 +58,19 @@ export default async function handler(req, res) {
       }
     });
 
-    res.status(200).json({ links });
+    if (links.length === 0) {
+      return NextResponse.json(
+        { error: "No links found in pinned message", raw: pinned },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ links }, { status: 200 });
   } catch (err) {
     console.error("ERROR:", err);
-    res.status(500).json({ error: 'Failed to fetch pinned message.' });
+    return NextResponse.json(
+      { error: "Failed to fetch pinned message." },
+      { status: 500 }
+    );
   }
 }
