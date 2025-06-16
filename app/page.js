@@ -9,7 +9,7 @@ export default function Page() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/');
+        const res = await fetch('/api/data/');
         const data = await res.json();
         if (data?.links) {
           setLinks(data.links);
