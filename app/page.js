@@ -9,7 +9,7 @@ export default function Page() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/telegram-route');
+        const res = await fetch('/api/');
         const data = await res.json();
         if (data?.links) {
           setLinks(data.links);
